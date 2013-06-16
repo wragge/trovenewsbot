@@ -1,0 +1,5 @@
+*.pyc
+credentials.py
+locked.txt
+last_id.txt
+errors.txt
