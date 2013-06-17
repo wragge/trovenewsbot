@@ -13,16 +13,16 @@ import logging
 
 
 LAST_ID = '/home/dhistory/apps/trovenewsbot/src/last_id.txt'
-#LAST_ID = 'last_id.txt'
+LAST_ID = 'last_id.txt'
 LOCK_FILE = '/home/dhistory/apps/trovenewsbot/src/locked.txt'
-#LOCK_FILE = 'locked.txt'
+LOCK_FILE = 'locked.txt'
 API_QUERY = 'http://api.trove.nla.gov.au/result?q={keywords}&zone=newspaper&l-category=Article&key={key}&encoding=json&n={number}&s={start}&reclevel=full'
 START_YEAR = 1803
 END_YEAR = 1954
 PERMALINK = 'http://nla.gov.au/nla.news-article{}'
 GREETING = 'Greetings human! Insert keywords. Use #luckydip for randomness.'
 LOG_FILE = '/home/dhistory/apps/trovenewsbot/src/errors.txt'
-#LOG_FILE = 'errors.txt'
+LOG_FILE = 'errors.txt'
 
 
 logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG,)
@@ -107,7 +107,7 @@ def process_tweet(text, user):
                 message = "@{user} ERROR! No article matching '{text}'.".format(user=user, text=text)
             else:
                 # Something's wrong, let's just give up.
-                message = ''
+                message = None
             break
         else:
             # Filter out 'coming soon' articles
@@ -147,7 +147,7 @@ def get_article(text, random=False, start=0):
     json_data = get_api_result(query)
     try:
         article = json_data['response']['zone'][0]['records']['article'][0]
-    except (KeyError, IndexError):
+    except (KeyError, IndexError, TypeError):
         return None
     else:
         return article
@@ -156,27 +156,30 @@ def get_article(text, random=False, start=0):
 def tweet_reply(api):
     if is_unlocked():
         lock()
-        try:
-            with open(LAST_ID, 'r') as last_id_file:
-                last_id = int(last_id_file.read().strip())
-            #print last_id
-            #print api.VerifyCredentials()
-            results = api.GetMentions(since_id=last_id)
-            #message = process_tweet('date:[1913 TO 1955] "mount stromlo" light pollution', 'wragge')
-            #print message
-            for tweet in results:
-                if tweet.in_reply_to_screen_name == 'TroveNewsBot':
-                    #print tweet.text
+        message = None
+        with open(LAST_ID, 'r') as last_id_file:
+            last_id = int(last_id_file.read().strip())
+        #print api.VerifyCredentials()
+        results = api.GetMentions(since_id=last_id)
+        #message = process_tweet('"mount stromlo" light pollution', 'wragge')
+        #print message
+        for tweet in results:
+            if tweet.in_reply_to_screen_name == 'TroveNewsBot':
+                #print tweet.text
+                try:
                     message = process_tweet(tweet.text, tweet.user.screen_name)
-                    print message
-                    if message:
+                except:
+                    logging.exception('Got exception on process_tweet')
+                if message:
+                    #print message
+                    try:
                         api.PostUpdate(message, in_reply_to_status_id=tweet.id)
-                        time.sleep(20)
-            if results:
-                with open(LAST_ID, 'w') as last_id_file:
-                    last_id_file.write(str(max([x.id for x in results])))
-        except:
-            logging.exception('Got exception on tweet_reply')
+                    except:
+                        logging.exception('Got exception on sending tweet')
+                time.sleep(20)
+        if results:
+            with open(LAST_ID, 'w') as last_id_file:
+                last_id_file.write(str(max([x.id for x in results])))
         unlock()
 
 
