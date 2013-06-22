@@ -9,7 +9,7 @@ Built using the [Trove API](http://trove.nla.gov.au/general/api).
 
 * Include the word 'hello' in a message to @TroveNewsBot to receive a greeting and a random newspaper article.
 * Any other message will be treated as a query and will be sent off to the Trove API to look for matching results in the newspaper database.
-* To receive any old random newspaper from amongst the 100 million odd available, just tweet TroevNewsBot the hashtag '#luckydip' and nothing else.
+* To receive any old random newspaper article from amongst the 100 million odd available, just tweet TroveNewsBot the hashtag '#luckydip' and nothing else.
 
 ### Modifying your bot query:
 
