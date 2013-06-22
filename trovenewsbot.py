@@ -13,16 +13,16 @@ import logging
 
 
 LAST_ID = '/home/dhistory/apps/trovenewsbot/src/last_id.txt'
-LAST_ID = 'last_id.txt'
+#LAST_ID = 'last_id.txt'
 LOCK_FILE = '/home/dhistory/apps/trovenewsbot/src/locked.txt'
-LOCK_FILE = 'locked.txt'
+#LOCK_FILE = 'locked.txt'
 API_QUERY = 'http://api.trove.nla.gov.au/result?q={keywords}&zone=newspaper&l-category=Article&key={key}&encoding=json&n={number}&s={start}&reclevel=full&sortby={sort}'
 START_YEAR = 1803
 END_YEAR = 1954
 PERMALINK = 'http://nla.gov.au/nla.news-article{}'
 GREETING = 'Greetings human! Insert keywords. Use #luckydip for randomness.'
 LOG_FILE = '/home/dhistory/apps/trovenewsbot/src/errors.txt'
-LOG_FILE = 'errors.txt'
+#LOG_FILE = 'errors.txt'
 
 
 logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG,)
@@ -95,7 +95,7 @@ def process_tweet(text, user):
     sort = 'relevance'
     trove_url = None
     text = text[14:].replace(u'\u201c', '"').replace(u'\u201d', '"')
-    query = text
+    query = text.strip()
     if re.search(r'\bhello\b', query, re.IGNORECASE):
         query = ''
         random = True
@@ -104,15 +104,16 @@ def process_tweet(text, user):
         # Get a random article
         query = query.replace('#luckydip', '').strip()
         random = True
-    if '#any' in query:
-        query = query.replace('#any', '').strip()
-        query = '({})'.format(' OR '.join(query.strip().split()))
     if '#earliest' in query:
         query = query.replace('#earliest', '').strip()
         sort = 'dateasc'
     if '#latest' in query:
         query = query.replace('#latest', '').strip()
         sort = 'datedesc'
+    if '#any' in query:
+        query = query.replace('#any', '').strip()
+        print "'{}'".format(query)
+        query = '({})'.format(' OR '.join(query.split()))
     query = extract_date(query)
     start = 0
     while trove_url is None:
@@ -192,8 +193,8 @@ def tweet_reply(api):
                     logging.exception('Got exception on process_tweet')
                 if message:
                     try:
-                        print message
-                        #api.PostUpdate(message, in_reply_to_status_id=tweet.id)
+                        #print message
+                        api.PostUpdate(message, in_reply_to_status_id=tweet.id)
                     except:
                         logging.exception('Got exception on sending tweet')
                 time.sleep(20)
