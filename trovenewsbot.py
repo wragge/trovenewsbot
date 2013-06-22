@@ -13,16 +13,16 @@ import logging
 
 
 LAST_ID = '/home/dhistory/apps/trovenewsbot/src/last_id.txt'
-LAST_ID = 'last_id.txt'
+#LAST_ID = 'last_id.txt'
 LOCK_FILE = '/home/dhistory/apps/trovenewsbot/src/locked.txt'
-LOCK_FILE = 'locked.txt'
-API_QUERY = 'http://api.trove.nla.gov.au/result?q={keywords}&zone=newspaper&l-category=Article&key={key}&encoding=json&n={number}&s={start}&reclevel=full'
+#LOCK_FILE = 'locked.txt'
+API_QUERY = 'http://api.trove.nla.gov.au/result?q={keywords}&zone=newspaper&l-category=Article&key={key}&encoding=json&n={number}&s={start}&reclevel=full&sortby={sort}'
 START_YEAR = 1803
 END_YEAR = 1954
 PERMALINK = 'http://nla.gov.au/nla.news-article{}'
 GREETING = 'Greetings human! Insert keywords. Use #luckydip for randomness.'
 LOG_FILE = '/home/dhistory/apps/trovenewsbot/src/errors.txt'
-LOG_FILE = 'errors.txt'
+#LOG_FILE = 'errors.txt'
 
 
 logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG,)
@@ -83,9 +83,16 @@ def extract_date(text):
     return text
 
 
+def extract_params(query):
+    if '#any' in query:
+        query = query.replace('#any', '')
+        query = '({})'.format(' OR '.join(query.split()))
+
+
 def process_tweet(text, user):
     random = False
     hello = False
+    sort = 'relevance'
     trove_url = None
     text = text[14:].replace(u'\u201c', '"').replace(u'\u201d', '"')
     query = text
@@ -97,10 +104,19 @@ def process_tweet(text, user):
         # Get a random article
         query = query.replace('#luckydip', '').strip()
         random = True
+    if '#any' in query:
+        query = query.replace('#any', '').strip()
+        query = '({})'.format(' OR '.join(query.split()))
+    if '#earliest' in query:
+        query = query.replace('#earliest', '').strip()
+        sort = 'dateasc'
+    if '#latest' in query:
+        query = query.replace('#latest', '').strip()
+        sort = 'datedesc'
     query = extract_date(query)
     start = 0
     while trove_url is None:
-        article = get_article(query, random, start)
+        article = get_article(query, random, start, sort)
         if not article:
             if query:
                 # Search failed
@@ -132,7 +148,7 @@ def process_tweet(text, user):
     return message
 
 
-def get_article(text, random=False, start=0):
+def get_article(text, random=False, start=0, sort=''):
     if random:
         if not text:
             text = get_random_year()
@@ -141,7 +157,8 @@ def get_article(text, random=False, start=0):
         keywords=urllib.quote_plus(text),
         key=credentials.api_key,
         number=1,
-        start=start
+        start=start,
+        sort=sort
     )
     print query
     json_data = get_api_result(query)
@@ -160,7 +177,10 @@ def tweet_reply(api):
         with open(LAST_ID, 'r') as last_id_file:
             last_id = int(last_id_file.read().strip())
         #print api.VerifyCredentials()
-        results = api.GetMentions(since_id=last_id)
+        try:
+            results = api.GetMentions(since_id=last_id)
+        except:
+            logging.exception('Got exception on retrieving tweets')
         #message = process_tweet('"mount stromlo" light pollution', 'wragge')
         #print message
         for tweet in results:
@@ -171,8 +191,8 @@ def tweet_reply(api):
                 except:
                     logging.exception('Got exception on process_tweet')
                 if message:
-                    #print message
                     try:
+                        #print message
                         api.PostUpdate(message, in_reply_to_status_id=tweet.id)
                     except:
                         logging.exception('Got exception on sending tweet')
