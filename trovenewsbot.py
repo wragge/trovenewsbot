@@ -133,8 +133,14 @@ def process_tweet(text, user):
                 trove_url = article['troveUrl']
             except (KeyError, TypeError):
                 pass
-            start += 1
-            time.sleep(1)
+            # Don't keep looking forever
+            if start < 60:
+                start += 1
+                time.sleep(1)
+            else:
+                message = "@{user} ERROR! Something went wrong. [:-(]".format(user=user)
+                article = None
+                break
     if article:
         url = PERMALINK.format(article['id'])
         fdate = utilities.format_iso_date(article['date'])
