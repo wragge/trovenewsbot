@@ -13,16 +13,16 @@ import logging
 
 
 LAST_ID = '/home/dhistory/apps/trovenewsbot/src/last_id.txt'
-#LAST_ID = 'last_id.txt'
+LAST_ID = 'last_id.txt'
 LOCK_FILE = '/home/dhistory/apps/trovenewsbot/src/locked.txt'
-#LOCK_FILE = 'locked.txt'
+LOCK_FILE = 'locked.txt'
 API_QUERY = 'http://api.trove.nla.gov.au/result?q={keywords}&zone=newspaper&l-category=Article&key={key}&encoding=json&n={number}&s={start}&reclevel=full&sortby={sort}'
 START_YEAR = 1803
 END_YEAR = 1954
 PERMALINK = 'http://nla.gov.au/nla.news-article{}'
 GREETING = 'Greetings human! Insert keywords. Use #luckydip for randomness.'
 LOG_FILE = '/home/dhistory/apps/trovenewsbot/src/errors.txt'
-#LOG_FILE = 'errors.txt'
+LOG_FILE = 'errors.txt'
 
 
 logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG,)
@@ -63,7 +63,8 @@ def get_start(text):
         keywords=urllib.quote_plus(text),
         key=credentials.api_key,
         number=0,
-        start=0
+        start=0,
+        sort='relevance'
     )
     json_data = get_api_result(query)
     total = int(json_data['response']['zone'][0]['records']['total'])
@@ -112,7 +113,7 @@ def process_tweet(text, user):
         sort = 'datedesc'
     if '#any' in query:
         query = query.replace('#any', '').strip()
-        print "'{}'".format(query)
+        #print "'{}'".format(query)
         query = '({})'.format(' OR '.join(query.split()))
     query = extract_date(query)
     start = 0
@@ -191,6 +192,7 @@ def tweet_reply(api):
                     message = process_tweet(tweet.text, tweet.user.screen_name)
                 except:
                     logging.exception('Got exception on process_tweet')
+                    message = None
                 if message:
                     try:
                         #print message
