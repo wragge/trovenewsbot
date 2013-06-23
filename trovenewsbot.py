@@ -13,16 +13,16 @@ import logging
 
 
 LAST_ID = '/home/dhistory/apps/trovenewsbot/src/last_id.txt'
-LAST_ID = 'last_id.txt'
+#LAST_ID = 'last_id.txt'
 LOCK_FILE = '/home/dhistory/apps/trovenewsbot/src/locked.txt'
-LOCK_FILE = 'locked.txt'
+#LOCK_FILE = 'locked.txt'
 API_QUERY = 'http://api.trove.nla.gov.au/result?q={keywords}&zone=newspaper&l-category=Article&key={key}&encoding=json&n={number}&s={start}&reclevel=full&sortby={sort}'
 START_YEAR = 1803
 END_YEAR = 1954
 PERMALINK = 'http://nla.gov.au/nla.news-article{}'
 GREETING = 'Greetings human! Insert keywords. Use #luckydip for randomness.'
 LOG_FILE = '/home/dhistory/apps/trovenewsbot/src/errors.txt'
-LOG_FILE = 'errors.txt'
+#LOG_FILE = 'errors.txt'
 
 
 logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG,)
