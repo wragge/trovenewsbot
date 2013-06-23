@@ -156,7 +156,7 @@ def process_tweet(text, user):
     return message
 
 
-def get_article(text, random=False, start=0, sort=''):
+def get_article(text, random=False, start=0, sort='relevance'):
     if random:
         if not text:
             text = get_random_year()
