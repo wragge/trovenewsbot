@@ -26,7 +26,7 @@ By default, the TroveNewsBot tweets the first (ie most relevant) matching result
 By default, the search terms you supply are sent directly to the Trove API without any modification. To change this you can:
 
 * Include the hashtag '#any' to search for articles that match *any* of your search terms. This is the same as adding an 'OR' between your terms.
-* Include a year to limit your search to that year.
+* Include a year to limit your search to that year. (Note that the majority of Trove's newspaper content was published between 1803 and 1954.)
 
 ### Opinionator Mode:
 
@@ -49,5 +49,6 @@ If you add the hashtag '#keywords' to a tweet containing a url, TroveNewsBot use
 ### Automatic botness:
 
 * At 9am, 3pm and 9pm (AEST), TroveNewsBot tweets a random article that has been updated or added in the previous 24 hours.
+* At 8am, 12 noon, 4pm and 8pm (AEST), TroveNewsBot tweets a response to the latest news item from the ABC's [Just In](http://www.abc.net.au/news/justin/) page.
 
 Released under CC0 licence.

@@ -3,3 +3,4 @@ credentials.py
 locked.txt
 last_id.txt
 errors.txt
+last_url.txt

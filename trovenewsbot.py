@@ -12,6 +12,7 @@ import time
 import logging
 from bs4 import BeautifulSoup
 from nltk.corpus import stopwords
+import feedparser
 import nltk
 
 try:
@@ -29,7 +30,7 @@ END_YEAR = 1954
 PERMALINK = 'http://nla.gov.au/nla.news-article{}'
 GREETING = 'Greetings human! Insert keywords. Use #luckydip for randomness.'
 ALCHEMY_KEYWORD_QUERY = 'http://access.alchemyapi.com/calls/url/URLGetRankedKeywords?url={url}&apikey={key}&maxRetrieve=10&outputMode=json&keywordExtractMode=strict'
-
+ABC_RSS = 'http://www.abc.net.au/news/feed/51120/rss.xml'
 
 logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG,)
 
@@ -195,7 +196,7 @@ def process_tweet(tweet):
                 message = "@{user} ERROR! No article matching '{text}'.".format(user=user, text=text)
             else:
                 # Something's wrong, let's just give up.
-                message = "@{user} ERROR! Something went wrong. [:-(] {date}".format(user=user, date = datetime.datetime.now())
+                message = "@{user} ERROR! Something went wrong. [:-(] {date}".format(user=user, date=datetime.datetime.now())
             break
         else:
             # Filter out 'coming soon' articles
@@ -208,7 +209,7 @@ def process_tweet(tweet):
                 start += 1
                 time.sleep(1)
             else:
-                message = "@{user} ERROR! Something went wrong. [:-(] {date}".format(user=user, date = datetime.datetime.now())
+                message = "@{user} ERROR! Something went wrong. [:-(] {date}".format(user=user, date=datetime.datetime.now())
                 article = None
                 break
     if article:
@@ -308,6 +309,52 @@ def tweet_random(api):
     api.PostUpdate(message)
 
 
+def tweet_opinion(api):
+    trove_url = None
+    keywords = []
+    article = None
+    news = feedparser.parse(ABC_RSS)
+    latest_url = news.entries[0].link
+    with open(LAST_URL, 'r') as last_url_file:
+        last_url = last_url_file.read().strip()
+    if latest_url != last_url:
+        try:
+            results = get_alchemy_result(latest_url)
+        except:
+            logging.exception('{}: Got exception on alchemyapi'.format(datetime.datetime.now()))
+        else:
+            for keyword in results['keywords']:
+                if len(keyword['text'].split()) > 1:
+                    keywords.append('"{}"'.format(keyword['text']))
+                else:
+                    keywords.append(keyword['text'])
+            query = '({})'.format(' OR '.join(keywords))
+            while not trove_url:
+                try:
+                    article = get_article(query)
+                except:
+                    logging.exception('{}: Got exception on get_article'.format(datetime.datetime.now()))
+                else:
+                    try:
+                        trove_url = article['troveUrl']
+                    except (KeyError, TypeError):
+                        pass
+                    time.sleep(1)
+            if article:
+                url = PERMALINK.format(article['id'])
+                fdate = utilities.format_iso_date(article['date'])
+                chars = 80 - len(fdate)
+                title = article['heading'][:chars]
+                message = "ABC News: {news} {date}: '{title}' {url}".format(news=latest_url, date=fdate, title=title.encode('utf-8'), url=url)
+                with open(LAST_URL, 'w') as last_url_file:
+                    last_url_file.write(latest_url)
+                print message
+                try:
+                    api.PostUpdate(message)
+                except:
+                    logging.exception('{}: Got exception on sending tweet'.format(datetime.datetime.now()))
+
+
 if __name__ == '__main__':
     api = twitter.Api(
         consumer_key=credentials.consumer_key,
@@ -322,3 +369,5 @@ if __name__ == '__main__':
         tweet_reply(api)
     elif args.task == 'random':
         tweet_random(api)
+    elif args.task == 'opinion':
+        tweet_opinion(api)
