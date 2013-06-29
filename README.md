@@ -3,7 +3,11 @@ trovenewsbot
 
 See me in action at [@TroveNewsBot](http://twitter.com/trovenewsbot).
 
-Built using the [Trove API](http://trove.nla.gov.au/general/api).
+Built using the [Trove API](http://trove.nla.gov.au/general/api), the Twitter API, and the [AlchemyAPI](http://www.alchemyapi.com/).
+
+For TroveNewsBot's unofficial biography see: [TroveNewsBot: The story so far](http://storify.com/wragge/trovenewsbot-the-story-so-far).
+
+Don't miss [TroveNewsBot's Guide to Child Rearing](http://storify.com/wragge/trovenewsbot-s-guide-to-child-rearing).
 
 ### Basic bot interactions:
 
