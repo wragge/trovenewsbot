@@ -24,6 +24,24 @@ By default, the search terms you supply are sent directly to the Trove API witho
 * Include the hashtag '#any' to search for articles that match *any* of your search terms. This is the same as adding an 'OR' between your terms.
 * Include a year to limit your search to that year.
 
+### Opinionator Mode:
+
+If you tweet a url to TroveNewsBot you enter *Opinionator* mode. In this mode, TroveNewsBot examines the page at the supplied url and builds a query based on it's contents. The result is a commentary of sorts drawn from from TroveNewsBot's reservoir of 100 million historic newspaper articles.
+
+#### Titles
+
+By default, TroveNewsBot assembles its query by looking for a number of elements on the page:
+
+* The first set of <h1></h1> tags
+* A meta tag with a name including the string 'title'
+* Whatever's in the <title></title> tag
+
+TroveNewsBot takes the text of whichever of these is found first, removes stopwords, slices off the first ten words, sends them off to Trove, and tweets the result.
+
+#### Keywords
+
+If you add the hashtag '#keywords' to a tweet containing a url, TroveNewsBot uses the [AlchemyAPI](http://www.alchemyapi.com/) to extract the ten top-ranked key words or phrases from the complete text of the page. These are then sent to Trove as before. This should probably (maybe) increase the relevance of TroveNewsBot's response.
+
 ### Automatic botness:
 
 * At 9am, 3pm and 9pm (AEST), TroveNewsBot tweets a random article that has been updated or added in the previous 24 hours.

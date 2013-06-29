@@ -10,19 +10,25 @@ import argparse
 import datetime
 import time
 import logging
+from bs4 import BeautifulSoup
+from nltk.corpus import stopwords
+import nltk
 
+try:
+    from file_locations_prod import *
+except ImportError:
+    pass
+try:
+    from file_locations_dev import *
+except ImportError:
+    pass
 
-LAST_ID = '/home/dhistory/apps/trovenewsbot/src/last_id.txt'
-#LAST_ID = 'last_id.txt'
-LOCK_FILE = '/home/dhistory/apps/trovenewsbot/src/locked.txt'
-#LOCK_FILE = 'locked.txt'
 API_QUERY = 'http://api.trove.nla.gov.au/result?q={keywords}&zone=newspaper&l-category=Article&key={key}&encoding=json&n={number}&s={start}&reclevel=full&sortby={sort}'
 START_YEAR = 1803
 END_YEAR = 1954
 PERMALINK = 'http://nla.gov.au/nla.news-article{}'
 GREETING = 'Greetings human! Insert keywords. Use #luckydip for randomness.'
-LOG_FILE = '/home/dhistory/apps/trovenewsbot/src/errors.txt'
-#LOG_FILE = 'errors.txt'
+ALCHEMY_KEYWORD_QUERY = 'http://access.alchemyapi.com/calls/url/URLGetRankedKeywords?url={url}&apikey={key}&maxRetrieve=10&outputMode=json&keywordExtractMode=strict'
 
 
 logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG,)
@@ -90,32 +96,96 @@ def extract_params(query):
         query = '({})'.format(' OR '.join(query.split()))
 
 
-def process_tweet(text, user):
+def extract_title(url):
+    h = httplib2.Http()
+    query = None
+    try:
+        resp, content = h.request(url)
+        soup = BeautifulSoup(content)
+        if soup.find('h1'):
+            query = soup.find('h1').string.strip()
+        elif soup.find('meta', name=re.compile('title')):
+            query = soup.find('meta', name=re.compile('title'))['content'].strip()
+        elif soup.find('title'):
+            query = soup.find('title').string.strip()
+    except httplib2.ServerNotFoundError:
+        return None
+    return query
+
+
+def get_alchemy_result(query_url):
+    query = None
+    h = httplib2.Http()
+    url = ALCHEMY_KEYWORD_QUERY.format(
+        key=credentials.alchemy_api,
+        url=urllib.quote_plus(query_url)
+    )
+    resp, content = h.request(url)
+    results = json.loads(content)
+    return results
+
+
+def extract_url_keywords(tweet, text):
+    query = None
+    keywords = []
+    try:
+        url = tweet.urls[0].url
+    except (IndexError, NameError):
+        return None
+    else:
+        if '#keywords' in text:
+            # Use Alchemy
+            results = get_alchemy_result(url)
+            for keyword in results['keywords']:
+                if len(keyword['text'].split()) > 1:
+                    keywords.append('"{}"'.format(keyword['text']))
+                else:
+                    keywords.append(keyword['text'])
+        else:
+            # Get page title
+            title = extract_title(url)
+            if title:
+                title = title.replace(u'\u2018', '').replace(u'\u2019', '').replace(u'\u201c', '').replace(u'\u201d', '')
+                words = nltk.word_tokenize(title)
+                keywords = [word.lower() for word in words if word.lower() not in stopwords.words('english') and word.isalnum()]
+                keywords = keywords[:10]
+    query = '({})'.format(' OR '.join(keywords))
+    print query
+    return query
+
+
+def process_tweet(tweet):
+    query = None
     random = False
     hello = False
     sort = 'relevance'
     trove_url = None
+    text = tweet.text.strip()
+    user = tweet.user.screen_name
     text = text[14:].replace(u'\u201c', '"').replace(u'\u201d', '"')
-    query = text.strip()
-    if re.search(r'\bhello\b', query, re.IGNORECASE):
+    if re.search(r'\bhello\b', text, re.IGNORECASE):
         query = ''
         random = True
         hello = True
-    if '#luckydip' in query:
-        # Get a random article
-        query = query.replace('#luckydip', '').strip()
-        random = True
-    if '#earliest' in query:
-        query = query.replace('#earliest', '').strip()
-        sort = 'dateasc'
-    if '#latest' in query:
-        query = query.replace('#latest', '').strip()
-        sort = 'datedesc'
-    if '#any' in query:
-        query = query.replace('#any', '').strip()
-        #print "'{}'".format(query)
-        query = '({})'.format(' OR '.join(query.split()))
-    query = extract_date(query)
+    else:
+        if '#luckydip' in text:
+            # Get a random article
+            text = text.replace('#luckydip', '').strip()
+            random = True
+        if '#earliest' in text:
+            text = text.replace('#earliest', '').strip()
+            sort = 'dateasc'
+        if '#latest' in text:
+            text = text.replace('#latest', '').strip()
+            sort = 'datedesc'
+        if '#any' in text:
+            text = text.replace('#any', '').strip()
+            #print "'{}'".format(query)
+            query = '({})'.format(' OR '.join(query.split()))
+        else:
+            query = extract_url_keywords(tweet, text)
+            if not query:
+                query = extract_date(text)
     start = 0
     while trove_url is None:
         article = get_article(query, random, start, sort)
@@ -125,7 +195,7 @@ def process_tweet(text, user):
                 message = "@{user} ERROR! No article matching '{text}'.".format(user=user, text=text)
             else:
                 # Something's wrong, let's just give up.
-                message = None
+                message = "@{user} ERROR! Something went wrong. [:-(] {date}".format(user=user, date = datetime.datetime.now())
             break
         else:
             # Filter out 'coming soon' articles
@@ -138,7 +208,7 @@ def process_tweet(text, user):
                 start += 1
                 time.sleep(1)
             else:
-                message = "@{user} ERROR! Something went wrong. [:-(]".format(user=user)
+                message = "@{user} ERROR! Something went wrong. [:-(] {date}".format(user=user, date = datetime.datetime.now())
                 article = None
                 break
     if article:
@@ -188,23 +258,23 @@ def tweet_reply(api):
         try:
             results = api.GetMentions(since_id=last_id)
         except:
-            logging.exception('Got exception on retrieving tweets')
+            logging.exception('{}: Got exception on retrieving tweets'.format(datetime.datetime.now()))
         #message = process_tweet('"mount stromlo" light pollution', 'wragge')
         #print message
         for tweet in results:
             if tweet.in_reply_to_screen_name == 'TroveNewsBot':
                 #print tweet.text
                 try:
-                    message = process_tweet(tweet.text, tweet.user.screen_name)
+                    message = process_tweet(tweet)
                 except:
-                    logging.exception('Got exception on process_tweet')
+                    logging.exception('{}: Got exception on process_tweet'.format(datetime.datetime.now()))
                     message = None
                 if message:
                     try:
-                        #print message
+                        print message
                         api.PostUpdate(message, in_reply_to_status_id=tweet.id)
                     except:
-                        logging.exception('Got exception on sending tweet')
+                        logging.exception('{}: Got exception on sending tweet'.format(datetime.datetime.now()))
                 time.sleep(20)
         if results:
             with open(LAST_ID, 'w') as last_id_file:
