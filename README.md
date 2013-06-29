@@ -32,9 +32,9 @@ If you tweet a url to TroveNewsBot you enter *Opinionator* mode. In this mode, T
 
 By default, TroveNewsBot assembles its query by looking for a number of elements on the page:
 
-* The first set of <h1></h1> tags
+* The first set of h1 tags
 * A meta tag with a name including the string 'title'
-* Whatever's in the <title></title> tag
+* Whatever's in the title tag
 
 TroveNewsBot takes the text of whichever of these is found first, removes stopwords, slices off the first ten words, sends them off to Trove, and tweets the result.
 
