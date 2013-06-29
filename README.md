@@ -26,7 +26,7 @@ By default, the search terms you supply are sent directly to the Trove API witho
 
 ### Opinionator Mode:
 
-If you tweet a url to TroveNewsBot you enter *Opinionator* mode. In this mode, TroveNewsBot examines the page at the supplied url and builds a query based on it's contents. The result is a commentary of sorts drawn from from TroveNewsBot's reservoir of 100 million historic newspaper articles.
+If you tweet a url to TroveNewsBot you enter **Opinionator** mode. In this mode, TroveNewsBot examines the page at the supplied url and builds a query based on it's contents. The result is a commentary of sorts drawn from from TroveNewsBot's reservoir of 100 million historic newspaper articles.
 
 #### Titles
 
