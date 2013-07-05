@@ -343,9 +343,9 @@ def tweet_opinion(api):
             if article:
                 url = PERMALINK.format(article['id'])
                 fdate = utilities.format_iso_date(article['date'])
-                chars = 80 - len(fdate)
+                chars = 79 - len(fdate)
                 title = article['heading'][:chars]
-                message = "ABC News: {news} {date}: '{title}' {url}".format(news=latest_url, date=fdate, title=title.encode('utf-8'), url=url)
+                message = "{date}: '{title}' {url} // re ABC: {news}".format(news=latest_url, date=fdate, title=title.encode('utf-8'), url=url)
                 with open(LAST_URL, 'w') as last_url_file:
                     last_url_file.write(latest_url)
                 print message
@@ -353,6 +353,61 @@ def tweet_opinion(api):
                     api.PostUpdate(message)
                 except:
                     logging.exception('{}: Got exception on sending tweet'.format(datetime.datetime.now()))
+
+
+def tweet_dpla(api):
+    trove_url = None
+    keywords = []
+    article = None
+    try:
+        tweets = api.GetUserTimeline(screen_name='DPLAbot', count=1)
+        #print tweets[0]
+    except:
+        logging.exception('{}: Got exception on retrieving tweet'.format(datetime.datetime.now()))
+    try:
+        latest_url = tweets[0].urls[0].url
+    except (IndexError, NameError):
+        return None
+    else:
+        with open(LAST_DPLA, 'r') as last_dpla_file:
+            last_url = last_dpla_file.read().strip()
+        if latest_url != last_url:
+            try:
+                results = get_alchemy_result(latest_url)
+            except:
+                logging.exception('{}: Got exception on alchemyapi'.format(datetime.datetime.now()))
+            else:
+                for keyword in results['keywords']:
+                    if len(keyword['text'].split()) > 1:
+                        keywords.append('"{}"'.format(keyword['text']))
+                    else:
+                        keywords.append(keyword['text'])
+                query = '({})'.format(' OR '.join(keywords))
+                while not trove_url:
+                    try:
+                        article = get_article(query)
+                    except:
+                        logging.exception('{}: Got exception on get_article'.format(datetime.datetime.now()))
+                    else:
+                        try:
+                            trove_url = article['troveUrl']
+                        except (KeyError, TypeError):
+                            pass
+                        time.sleep(1)
+                if article:
+                    url = PERMALINK.format(article['id'])
+                    fdate = utilities.format_iso_date(article['date'])
+                    chars = 78 - len(fdate)
+                    title = article['heading'][:chars]
+                    message = "{date}: '{title}' {url} // re DPLA: {dpla}".format(dpla=latest_url, date=fdate, title=title.encode('utf-8'), url=url)
+                    with open(LAST_DPLA, 'w') as last_dpla_file:
+                        last_dpla_file.write(latest_url)
+                    try:
+                        print message
+                        api.PostUpdate(message)
+                    except:
+                        logging.exception('{}: Got exception on sending tweet'.format(datetime.datetime.now()))
+
 
 
 if __name__ == '__main__':
@@ -371,3 +426,5 @@ if __name__ == '__main__':
         tweet_random(api)
     elif args.task == 'opinion':
         tweet_opinion(api)
+    elif args.task == 'dpla':
+        tweet_dpla(api)
