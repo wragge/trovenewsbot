@@ -50,5 +50,6 @@ If you add the hashtag '#keywords' to a tweet containing a url, TroveNewsBot use
 
 * At 9am, 3pm and 9pm (AEST), TroveNewsBot tweets a random article that has been updated or added in the previous 24 hours.
 * At 8am, 12 noon, 4pm and 8pm (AEST), TroveNewsBot tweets a response to the latest news item from the ABC's [Just In](http://www.abc.net.au/news/justin/) page.
+* Every few hours TroveNewsBot tweets a response to the most recent link from [DPLA](http://dp.la) tweeted by [DPLABot](https://twitter.com/DPLAbot).
 
 Released under CC0 licence.
