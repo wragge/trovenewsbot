@@ -339,6 +339,7 @@ def tweet_opinion(api):
                         trove_url = article['troveUrl']
                     except (KeyError, TypeError):
                         pass
+                    start += 1
                     time.sleep(1)
             if article:
                 url = PERMALINK.format(article['id'])
@@ -359,6 +360,7 @@ def tweet_dpla(api):
     trove_url = None
     keywords = []
     article = None
+    start = 0
     try:
         tweets = api.GetUserTimeline(screen_name='DPLAbot', count=1)
         #print tweets[0]
@@ -385,7 +387,7 @@ def tweet_dpla(api):
                 query = '({})'.format(' OR '.join(keywords))
                 while not trove_url:
                     try:
-                        article = get_article(query)
+                        article = get_article(query, start=start)
                     except:
                         logging.exception('{}: Got exception on get_article'.format(datetime.datetime.now()))
                     else:
@@ -393,6 +395,7 @@ def tweet_dpla(api):
                             trove_url = article['troveUrl']
                         except (KeyError, TypeError):
                             pass
+                        start += 1
                         time.sleep(1)
                 if article:
                     url = PERMALINK.format(article['id'])
