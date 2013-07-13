@@ -3,7 +3,7 @@ trovenewsbot
 
 See me in action at [@TroveNewsBot](http://twitter.com/trovenewsbot).
 
-Built using the [Trove API](http://trove.nla.gov.au/general/api), the Twitter API, and the [AlchemyAPI](http://www.alchemyapi.com/).
+Built using the [Trove API](http://trove.nla.gov.au/general/api), the Twitter API, the [AlchemyAPI](http://www.alchemyapi.com/), and the [GeoNames webservice](http://www.geonames.org/export/web-services.html).
 
 For TroveNewsBot's unofficial biography see: [TroveNewsBot: The story so far](http://storify.com/wragge/trovenewsbot-the-story-so-far).
 
@@ -27,6 +27,7 @@ By default, the search terms you supply are sent directly to the Trove API witho
 
 * Include the hashtag '#any' to search for articles that match *any* of your search terms. This is the same as adding an 'OR' between your terms.
 * Include a year to limit your search to that year. (Note that the majority of Trove's newspaper content was published between 1803 and 1954.)
+* Include the hashtag '#here' and location-enable your tweet to add the name of the place nearest to you to the query string. The place information is retrieved from the GeoNames reverse geocoding API.
 
 ### Opinionator Mode:
 

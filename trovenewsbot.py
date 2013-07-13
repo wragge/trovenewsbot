@@ -31,6 +31,7 @@ PERMALINK = 'http://nla.gov.au/nla.news-article{}'
 GREETING = 'Greetings human! Insert keywords. Use #luckydip for randomness.'
 ALCHEMY_KEYWORD_QUERY = 'http://access.alchemyapi.com/calls/url/URLGetRankedKeywords?url={url}&apikey={key}&maxRetrieve=10&outputMode=json&keywordExtractMode=strict'
 ABC_RSS = 'http://www.abc.net.au/news/feed/51120/rss.xml'
+GEONAMES = 'http://api.geonames.org/findNearbyJSON?lat={lat}&lng={lon}&username={user}'
 
 logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG,)
 
@@ -115,7 +116,6 @@ def extract_title(url):
 
 
 def get_alchemy_result(query_url):
-    query = None
     h = httplib2.Http()
     url = ALCHEMY_KEYWORD_QUERY.format(
         key=credentials.alchemy_api,
@@ -123,6 +123,7 @@ def get_alchemy_result(query_url):
     )
     resp, content = h.request(url)
     results = json.loads(content)
+    print results
     return results
 
 
@@ -155,6 +156,34 @@ def extract_url_keywords(tweet, text):
     return query
 
 
+def get_geonames_result(coords):
+    h = httplib2.Http()
+    url = GEONAMES.format(
+        user=credentials.geonames,
+        lat=coords[1],
+        lon=coords[0]
+    )
+    resp, content = h.request(url)
+    results = json.loads(content)
+    return results
+
+
+def extract_location(tweet, text):
+    try:
+        coords = tweet.coordinates['coordinates']
+        print coords
+    except (IndexError, NameError, AttributeError, TypeError):
+        return ''
+    else:
+        results = get_geonames_result(coords)
+        try:
+            placename = results['geonames'][0]['name'].strip()
+            print placename
+        except KeyError:
+            return ''
+    return placename
+
+
 def process_tweet(tweet):
     query = None
     random = False
@@ -179,6 +208,10 @@ def process_tweet(tweet):
         if '#latest' in text:
             text = text.replace('#latest', '').strip()
             sort = 'datedesc'
+        if '#here' in text:
+            text = text.replace('#here', '').strip()
+            placename = extract_location(tweet, text)
+            text = '{}{}'.format('{} '.format(text) if text else '', placename)
         if '#any' in text:
             text = text.replace('#any', '').strip()
             #print "'{}'".format(query)
@@ -221,9 +254,9 @@ def process_tweet(tweet):
             title = title[:chars]
             message = "@{user} {greeting} {date}: '{title}' {url}".format(user=user, greeting=GREETING, date=fdate, title=title.encode('utf-8'), url=url)
         else:
-            chars = 118 - (len(user) + len(fdate) + 7)
+            chars = 118 - (len(user) + len(fdate) + len(placename) + 7)
             title = title[:chars]
-            message = "@{user} {date}: '{title}' {url}".format(user=user, greeting=GREETING, date=fdate, title=title.encode('utf-8'), url=url)
+            message = "@{user} {place}{date}: '{title}' {url}".format(user=user, greeting=GREETING, date=fdate, title=title.encode('utf-8'), url=url, place='{}'.format('{}, '.format(placename) if placename else ''))
     return message
 
 
@@ -313,6 +346,7 @@ def tweet_opinion(api):
     trove_url = None
     keywords = []
     article = None
+    start = 0
     news = feedparser.parse(ABC_RSS)
     latest_url = news.entries[0].link
     with open(LAST_URL, 'r') as last_url_file:
@@ -331,7 +365,7 @@ def tweet_opinion(api):
             query = '({})'.format(' OR '.join(keywords))
             while not trove_url:
                 try:
-                    article = get_article(query)
+                    article = get_article(query, start=start)
                 except:
                     logging.exception('{}: Got exception on get_article'.format(datetime.datetime.now()))
                 else:
@@ -349,8 +383,8 @@ def tweet_opinion(api):
                 message = "{date}: '{title}' {url} // re ABC: {news}".format(news=latest_url, date=fdate, title=title.encode('utf-8'), url=url)
                 with open(LAST_URL, 'w') as last_url_file:
                     last_url_file.write(latest_url)
-                print message
                 try:
+                    print message
                     api.PostUpdate(message)
                 except:
                     logging.exception('{}: Got exception on sending tweet'.format(datetime.datetime.now()))
