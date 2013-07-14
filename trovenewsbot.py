@@ -188,6 +188,7 @@ def process_tweet(tweet):
     query = None
     random = False
     hello = False
+    placename = ''
     sort = 'relevance'
     trove_url = None
     text = tweet.text.strip()
