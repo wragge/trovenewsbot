@@ -14,6 +14,10 @@ from bs4 import BeautifulSoup
 from nltk.corpus import stopwords
 import feedparser
 import nltk
+import pytumblr
+from PIL import Image
+from urllib2 import urlopen
+import io
 
 try:
     from file_locations_prod import *
@@ -32,6 +36,9 @@ GREETING = 'Greetings human! Insert keywords. Use #luckydip for randomness.'
 ALCHEMY_KEYWORD_QUERY = 'http://access.alchemyapi.com/calls/url/URLGetRankedKeywords?url={url}&apikey={key}&maxRetrieve=10&outputMode=json&keywordExtractMode=strict'
 ABC_RSS = 'http://www.abc.net.au/news/feed/51120/rss.xml'
 GEONAMES = 'http://api.geonames.org/findNearbyJSON?lat={lat}&lng={lon}&username={user}'
+TUMBLR_URL = 'http://trovenewsbot.tumblr.com/'
+IMAGE_PAGE_URL = 'http://trove.nla.gov.au/ndp/del/printArticleJpg/{}/3'
+
 
 logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG,)
 
@@ -464,6 +471,95 @@ def tweet_dpla(api):
                     logging.error('{}: Alchemy API said: {}'.format(datetime.datetime.now(), results['statusInfo']))
 
 
+def get_image(article):
+    url = IMAGE_PAGE_URL.format(article['id'])
+    print url
+    response = urlopen(url)
+    soup = BeautifulSoup(response.read())
+    images = soup.find_all('img')
+    if len(images) == 1:
+        img_src = images[0]['src']
+        img_url = 'http://trove.nla.gov.au{}'.format(img_src)
+        response = urlopen(img_url)
+        tumblr_image = Image.open(io.BytesIO(response.read()))
+        #tumblr_image = content
+    else:
+        parts = []
+        total_height = 0
+        width = 0
+        for image_part in images:
+            part_src = image_part['src']
+            part_url = 'http://trove.nla.gov.au{}'.format(part_src)
+            response = urlopen(part_url)
+            img = Image.open(io.BytesIO(response.read()))
+            width, height = img.size
+            parts.append((img, height))
+            total_height += height
+        combined_image = Image.new('RGB', (width, total_height))
+        y_offset = 0
+        for part in parts:
+            combined_image.paste(part[0], (0, y_offset))
+            y_offset += part[1]
+        tumblr_image = combined_image
+    tumblr_image.save(TEMP_IMAGE, format='JPEG')
+    return TEMP_IMAGE
+
+
+def get_random_illustration():
+    query = API_QUERY.format(
+        keywords='%20',
+        key=credentials.api_key,
+        number=0,
+        start=0,
+        sort='relevance'
+    ) + '&l-illustrated=Y&l-word=0'
+    json_data = get_api_result(query)
+    total = int(json_data['response']['zone'][0]['records']['total'])
+    start = random.randint(0, total)
+    query = API_QUERY.format(
+        keywords='%20',
+        key=credentials.api_key,
+        number=1,
+        start=start,
+        sort='relevance'
+    ) + '&l-illustrated=Y&l-word=0'
+    print query
+    json_data = get_api_result(query)
+    try:
+        article = json_data['response']['zone'][0]['records']['article'][0]
+    except (KeyError, IndexError, TypeError):
+        return None
+    else:
+        return article
+
+
+def post_tumblr():
+    tumblr = pytumblr.TumblrRestClient(
+        credentials.tumblr_oauth_consumer,
+        credentials.tumblr_oauth_secret,
+        credentials.tumblr_oauth_token,
+        credentials.tumblr_oauth_token_secret)
+    try:
+        article = get_random_illustration()
+    except:
+        logging.exception('{}: Got exception while retrieving tumblr article'.format(datetime.datetime.now()))
+    caption = '<a href="{url}">{title}</a><br><em>{newspaper}</em><br>{date}, page {page}'
+    caption = caption.format(
+            url = PERMALINK.format(article['id']),
+            title=article['heading'].encode('utf-8'),
+            newspaper=article['title']['value'],
+            date=utilities.format_iso_date(article['date']),
+            page=article['page']
+        )
+    try:
+        tumblr_img = get_image(article)
+    except:
+        logging.exception('{}: Got exception on creating tmblr image'.format(datetime.datetime.now()))
+    try:
+        tumblr.create_photo('trovenewsbot.tumblr.com', caption=caption, data=tumblr_img)
+    except:
+        logging.exception('{}: Got exception on posting to tumblr'.format(datetime.datetime.now()))
+
 
 if __name__ == '__main__':
     api = twitter.Api(
@@ -483,3 +579,5 @@ if __name__ == '__main__':
         tweet_opinion(api)
     elif args.task == 'dpla':
         tweet_dpla(api)
+    elif args.task == 'tumblr':
+        post_tumblr()
