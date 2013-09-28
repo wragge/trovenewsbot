@@ -107,7 +107,7 @@ def extract_title(url):
         if soup.find('h1'):
             query = soup.find('h1').string.strip()
         elif soup.find('meta', name=re.compile('title')):
-            query = soup.find('meta', name=re.compile('title'))['content'].strip()
+            query = soup.find('meta', attrs={'name': re.compile('title')})['content'].strip()
         elif soup.find('title'):
             query = soup.find('title').string.strip()
     except httplib2.ServerNotFoundError:
@@ -193,7 +193,7 @@ def process_tweet(tweet):
     trove_url = None
     text = tweet.text.strip()
     user = tweet.user.screen_name
-    text = text[14:].replace(u'\u201c', '"').replace(u'\u201d', '"')
+    text = text[14:].replace(u'\u201c', '"').replace(u'\u201d', '"').replace(u'\u2019', "'")
     if re.search(r'\bhello\b', text, re.IGNORECASE):
         query = ''
         random = True
@@ -429,6 +429,7 @@ def tweet_dpla(api):
                         else:
                             keywords.append(keyword['text'])
                     query = '({})'.format(' OR '.join(keywords))
+                    start = random.randint(0, 19)
                     while not trove_url:
                         try:
                             article = get_article(query, start=start)
@@ -449,9 +450,9 @@ def tweet_dpla(api):
                     if article:
                         url = PERMALINK.format(article['id'])
                         fdate = utilities.format_iso_date(article['date'])
-                        chars = 78 - len(fdate)
+                        chars = 76 - len(fdate)
                         title = article['heading'][:chars]
-                        message = "{date}: '{title}' {url} // re DPLA: {dpla}".format(dpla=latest_url, date=fdate, title=title.encode('utf-8'), url=url)
+                        message = "{date}: '{title}' {url} // re DPLofA: {dpla}".format(dpla=latest_url, date=fdate, title=title.encode('utf-8'), url=url)
                         with open(LAST_DPLA, 'w') as last_dpla_file:
                             last_dpla_file.write(latest_url)
                         try:
