@@ -122,19 +122,22 @@ def extract_title(url):
     return query
 
 
-def get_alchemy_result(query_url):
+def get_alchemy_result(query_url, xpath=None):
     h = httplib2.Http()
     url = ALCHEMY_KEYWORD_QUERY.format(
         key=credentials.alchemy_api,
         url=urllib.quote_plus(query_url)
     )
+    if xpath:
+        url += '&sourceText=xpath'
+        url += '&xpath={}'.format(urllib.quote_plus(xpath))
     resp, content = h.request(url)
     results = json.loads(content)
     print results
     return results
 
 
-def extract_url_keywords(tweet, text):
+def extract_url_keywords(tweet, text, xpath=None):
     query = None
     keywords = []
     try:
@@ -303,25 +306,27 @@ def tweet_reply(api):
             logging.exception('{}: Got exception on retrieving tweets'.format(datetime.datetime.now()))
         #message = process_tweet('"mount stromlo" light pollution', 'wragge')
         #print message
-        for tweet in results:
-            if tweet.in_reply_to_screen_name == 'TroveNewsBot':
-                #print tweet.text
-                try:
-                    message = process_tweet(tweet)
-                except:
-                    logging.exception('{}: Got exception on process_tweet'.format(datetime.datetime.now()))
-                    message = None
-                if message:
+        else:
+            for tweet in results:
+                if tweet.in_reply_to_screen_name == 'TroveNewsBot':
+                    #print tweet.text
                     try:
-                        print message
-                        api.PostUpdate(message, in_reply_to_status_id=tweet.id)
+                        message = process_tweet(tweet)
                     except:
-                        logging.exception('{}: Got exception on sending tweet'.format(datetime.datetime.now()))
-                time.sleep(20)
-        if results:
-            with open(LAST_ID, 'w') as last_id_file:
-                last_id_file.write(str(max([x.id for x in results])))
-        unlock()
+                        logging.exception('{}: Got exception on process_tweet'.format(datetime.datetime.now()))
+                        message = None
+                    if message:
+                        try:
+                            print message
+                            api.PostUpdate(message, in_reply_to_status_id=tweet.id)
+                        except:
+                            logging.exception('{}: Got exception on sending tweet'.format(datetime.datetime.now()))
+                    time.sleep(20)
+            if results:
+                with open(LAST_ID, 'w') as last_id_file:
+                    last_id_file.write(str(max([x.id for x in results])))
+        finally:
+            unlock()
 
 
 def tweet_random(api):
@@ -471,6 +476,71 @@ def tweet_dpla(api):
                     logging.error('{}: Alchemy API said: {}'.format(datetime.datetime.now(), results['statusInfo']))
 
 
+def tweet_dnz(api):
+    trove_url = None
+    keywords = []
+    article = None
+    start = 0
+    try:
+        tweets = api.GetUserTimeline(screen_name='digitalNZbot', count=1)
+        #print tweets[0]
+    except:
+        logging.exception('{}: Got exception on retrieving tweet'.format(datetime.datetime.now()))
+    try:
+        latest_url = tweets[0].urls[0].url
+    except (IndexError, NameError):
+        return None
+    else:
+        with open(LAST_DNZ, 'r') as last_dnz_file:
+            last_url = last_dnz_file.read().strip()
+        if latest_url != last_url:
+            try:
+                results = get_alchemy_result(latest_url, xpath='//div[@class="details"]')
+            except:
+                logging.exception('{}: Got exception on alchemyapi'.format(datetime.datetime.now()))
+            else:
+                if results['keywords']:
+                    for keyword in results['keywords']:
+                        if len(keyword['text'].split()) > 1:
+                            keywords.append('"{}"'.format(keyword['text']))
+                        else:
+                            keywords.append(keyword['text'])
+                    query = '({})'.format(' OR '.join(keywords))
+                    #start = random.randint(0, 19)
+                    while not trove_url:
+                        try:
+                            article = get_article(query)
+                        except:
+                            logging.exception('{}: Got exception on get_article'.format(datetime.datetime.now()))
+                        else:
+                            try:
+                                trove_url = article['troveUrl']
+                            except (KeyError, TypeError):
+                                pass
+                            # Don't keep looking forever
+                            if start < 60:
+                                start += 1
+                                time.sleep(1)
+                            else:
+                                article = None
+                                break
+                    if article:
+                        url = PERMALINK.format(article['id'])
+                        fdate = utilities.format_iso_date(article['date'])
+                        chars = 73 - len(fdate)
+                        title = article['heading'][:chars]
+                        message = "{date}: '{title}' {url} // re DigitalNZ: {dnz}".format(dnz=latest_url, date=fdate, title=title.encode('utf-8'), url=url)
+                        with open(LAST_DNZ, 'w') as last_dnz_file:
+                            last_dnz_file.write(latest_url)
+                        try:
+                            print message
+                            api.PostUpdate(message)
+                        except:
+                            logging.exception('{}: Got exception on sending tweet'.format(datetime.datetime.now()))
+                else:
+                    loggng.error('{}: Alchemy API said: {}'.format(datetime.datetime.now(), results['statusInfo']))
+
+
 def get_image(article):
     url = IMAGE_PAGE_URL.format(article['id'])
     print url
@@ -579,5 +649,7 @@ if __name__ == '__main__':
         tweet_opinion(api)
     elif args.task == 'dpla':
         tweet_dpla(api)
+    elif args.task == 'dnz':
+        tweet_dnz(api)
     elif args.task == 'tumblr':
         post_tumblr()
